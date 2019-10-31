@@ -1,0 +1,89 @@
+---
+title: "ML-HW4"
+author: "Brian Chang"
+date: "2019/10/29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load relevant libraries, include=FALSE}
+library(tidyverse)
+library(caret)
+library(randomForest)
+library(mlbench)
+library(glmnet)
+library(datasets)
+library(dplyr)
+library(MASS)
+library(nnet)
+library(e1071)
+library(AER)
+```
+
+
+## Homework
+
+1. Compare the most important features from at least 2 different classes of feature selection methods covered in this tutorial with any reasonable machine learning dataset from mlbench. Do these feature selection methods provide similar results? 
+
+2. Attempt a feature selection method not covered in this tutorial (backward elimination, forward propogation, etc.)
+
+```{r iris}
+data(iris)
+
+iris_num <- iris[,1:4]
+```
+
+##Filter Method (Pearson's Correlation) 
+* Only gives petal.width and petal.length for iris dataset
+```{r correlation}
+# calculate correlation
+correlation_matrix = cor(iris_num)
+
+# correlation plot
+library(corrplot)
+corrplot(correlation_matrix, order = "hclust")
+
+# keep correlation >=0.7
+highly_correlated <- colnames(iris)[findCorrelation(correlation_matrix, cutoff = 0.7, verbose = TRUE)]
+highly_correlated
+```
+
+##Wrapper Method (RFE)
+* This method also gives petal.length and petal.width as the top 2 variables.
+```{r RFE}
+iris_num[is.na(iris_num)] = 0
+
+#define the control 
+control = rfeControl(functions = caretFuncs, number = 2)
+
+# run the RFE algorithm
+results = rfe(iris[,1:4], iris[,5], sizes = c(1,2,3), rfeControl = control, method = "svmRadial")
+# sizes is number of featuresr you want to pull out
+
+results
+results$variables
+
+plot(results, type=c('g','o'))
+
+predictors(results)
+```
+
+##Backward Elimination Method
+* When looking at the coefficients of the predictors and associated P-values, petal.length and petal.width have the lowest P-values. Interestingly, petal.length has the largest coefficients.
+```{r backward}
+# multinomial logistic regression
+logistic <- multinom(Species ~ ., data=iris)
+logistic
+
+# p values for predictors
+coeftest(logistic)
+```
+
+
+
+
+
