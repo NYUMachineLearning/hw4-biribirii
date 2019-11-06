@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##Load libraries
+## Load libraries
 ```{r load relevant libraries, include=FALSE}
 library(tidyverse)
 library(caret)
@@ -31,38 +31,50 @@ library(AER)
 
 2. Attempt a feature selection method not covered in this tutorial (backward elimination, forward propogation, etc.)
 
-```{r iris}
-data(iris)
+## Load Dataset
+```{r data}
+data(PimaIndiansDiabetes)
+indian <- as.data.frame(PimaIndiansDiabetes)
+indian_num <- indian[,1:8]
 
-iris_num <- iris[,1:4]
+indian_num = transform(indian_num, pregnant = as.numeric(pregnant), 
+                       glucose = as.numeric(glucose),
+                       pressure = as.numeric(pressure),
+                       triceps = as.numeric(triceps),
+                       insulin = as.numeric(insulin),
+                       mass = as.numeric(mass),
+                       pedigree = as.numeric(pedigree),
+                       age = as.numeric(age))
 ```
 
-##Filter Method (Pearson's Correlation) 
-* Only gives petal.width and petal.length for iris dataset
+## Filter Method (Pearson's Correlation)
+* When threshold is set at 0.7, no variables were selected for.
+* Lowered threshold to 0.5, which selects for only "age."
 ```{r correlation}
 # calculate correlation
-correlation_matrix = cor(iris_num)
+correlation_matrix = cor(indian_num)
 
 # correlation plot
 library(corrplot)
 corrplot(correlation_matrix, order = "hclust")
 
 # keep correlation >=0.7
-highly_correlated <- colnames(iris)[findCorrelation(correlation_matrix, cutoff = 0.7, verbose = TRUE)]
+highly_correlated <- colnames(indian)[findCorrelation(correlation_matrix, cutoff = 0.5, verbose = TRUE)]
 highly_correlated
 ```
 
-##Wrapper Method (RFE)
-* This method also gives petal.length and petal.width as the top 2 variables.
+## Wrapper Method (RFE)
+* This method selects "age" as one of the top 3 variables. However, there are 2 others - "glucose" and "mass"
+* This demonstrates similar results to the filter method as "age" is one of our selected variables.
 ```{r RFE}
-iris_num[is.na(iris_num)] = 0
+indian_num[is.na(indian_num)] = 0
 
 #define the control 
 control = rfeControl(functions = caretFuncs, number = 2)
 
 # run the RFE algorithm
-results = rfe(iris[,1:4], iris[,5], sizes = c(1,2,3), rfeControl = control, method = "svmRadial")
-# sizes is number of featuresr you want to pull out
+results = rfe(indian[,1:8], indian[,9], sizes = c(2,3,5), rfeControl = control, method = "svmRadial")
+# sizes is number of features you want to pull out
 
 results
 results$variables
@@ -72,18 +84,22 @@ plot(results, type=c('g','o'))
 predictors(results)
 ```
 
-##Backward Elimination Method
-* When looking at the coefficients of the predictors and associated P-values, petal.length and petal.width have the lowest P-values. Interestingly, petal.length has the largest coefficients.
-```{r backward}
-# multinomial logistic regression
-logistic <- multinom(Species ~ ., data=iris)
-logistic
 
-# p values for predictors
-coeftest(logistic)
+## Simulated Annealing
+* We will fit a random forest model and run 10 iterations of the algorithm.
+  + Only 10 iterations will be run for computational intensity.
+* We see that the top 3 selected variables are - "glucose", "age", and "insulin" and "mass" being tied for third. 
+* The variables selected here are similar to the wrapper method earlier.
+
+```{r SA}
+sa_ctrl <- safsControl(functions = rfSA,
+                       method = "repeatedcv",
+                       repeats = 5,
+                       improve = 50)
+set.seed(10)
+rf_sa <- safs(x = indian_num, y = indian[,9],
+              iters = 10,
+              safsControl = sa_ctrl)
+rf_sa
 ```
-
-
-
-
 
